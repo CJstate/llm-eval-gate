@@ -25,9 +25,9 @@ jobs:
             python-version: "3.12"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -51,6 +51,7 @@ jobs:
           test "$bad" -eq 1
 
       - name: Check the gate reports a regression as JSON
+        shell: bash
         run: |
           llm-eval-gate tests/fixtures/baseline.json tests/fixtures/candidate_regressed.json \
             --format json --quiet --output gate.json || true
@@ -60,8 +61,8 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Byte-compile every module
@@ -80,8 +81,8 @@ jobs:
     name: self-gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install
