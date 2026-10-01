@@ -1,0 +1,24 @@
+{
+  "results": {
+    "arc_easy": {
+      "acc,none": 0.81,
+      "acc_stderr,none": 0.02
+    },
+    "hellaswag": {
+      "acc,none": 0.42,
+      "acc_stderr,none": 0.01
+    },
+    "wikitext": {
+      "word_perplexity,none": 12.5,
+      "word_perplexity_stderr,none": 0.3,
+      "byte_perplexity,none": 1.8
+    }
+  },
+  "configs": {
+    "model": "hf",
+    "model_args": "pretrained=tiny-model",
+    "batch_size": 8
+  },
+  "git_hash": "3333333333333333333333333333333333333333",
+  "lm_eval_version": "0.4.5"
+}

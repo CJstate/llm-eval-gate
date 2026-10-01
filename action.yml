@@ -1,0 +1,90 @@
+name: LLM eval gate
+description: >-
+  Fail the build when an lm-evaluation-harness run regresses against a baseline.
+  Diffs two results JSON files per task and metric, applying relative thresholds
+  and an stderr-aware noise band, then annotates the pull request.
+author: CJstate
+
+branding:
+  icon: check-circle
+  color: purple
+
+inputs:
+  baseline:
+    description: Path to the baseline harness results JSON.
+    required: true
+  candidate:
+    description: Path to the candidate harness results JSON.
+    required: true
+  config:
+    description: Optional path to a TOML gate policy (thresholds and overrides).
+    required: false
+    default: ""
+  format:
+    description: Report format used for the console output and annotations.
+    required: false
+    default: github
+  report-path:
+    description: >-
+      Where to write the Markdown report, suitable for a pull-request comment.
+      Empty disables writing it.
+    required: false
+    default: llm-eval-gate-report.md
+  python-version:
+    description: Python version used to run the gate.
+    required: false
+    default: "3.12"
+
+outputs:
+  passed:
+    description: "'true' when the gate passed, otherwise 'false'."
+    value: ${{ steps.gate.outputs.passed }}
+  exit-code:
+    description: "0 = pass, 1 = regression, 2 = input error."
+    value: ${{ steps.gate.outputs.exit-code }}
+  report-path:
+    description: Path to the Markdown report (empty when disabled).
+    value: ${{ steps.gate.outputs.report-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install llm-eval-gate
+      shell: bash
+      run: python -m pip install --disable-pip-version-check "${{ github.action_path }}"
+
+    - name: Write Markdown report
+      if: ${{ inputs.report-path != '' }}
+      shell: bash
+      run: |
+        set +e
+        llm-eval-gate "${{ inputs.baseline }}" "${{ inputs.candidate }}" \
+          --format markdown --output "${{ inputs.report-path }}" --quiet
+        set -e
+
+    - name: Evaluate gate
+      id: gate
+      shell: bash
+      run: |
+        set +e
+        args=( "${{ inputs.baseline }}" "${{ inputs.candidate }}" --format "${{ inputs.format }}" )
+        if [ -n "${{ inputs.config }}" ]; then
+          args+=( --config "${{ inputs.config }}" )
+        fi
+        llm-eval-gate "${args[@]}"
+        code=$?
+        set -e
+
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        echo "report-path=${{ inputs.report-path }}" >> "$GITHUB_OUTPUT"
+        if [ "$code" -eq 0 ]; then
+          echo "passed=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "passed=false" >> "$GITHUB_OUTPUT"
+        fi
+        exit "$code"

@@ -1,0 +1,168 @@
+{
+  "schema": "llm-eval-gate/v1",
+  "passed": false,
+  "exit_code": 1,
+  "baseline": {
+    "path": "tests\\fixtures\\baseline.json",
+    "model_name": "hf",
+    "git_hash": "1111111111111111111111111111111111111111",
+    "harness_version": "0.4.5",
+    "tasks": [
+      "arc_easy",
+      "hellaswag",
+      "wikitext"
+    ]
+  },
+  "candidate": {
+    "path": "tests\\fixtures\\candidate_regressed.json",
+    "model_name": "hf",
+    "git_hash": "2222222222222222222222222222222222222222",
+    "harness_version": "0.4.5",
+    "tasks": [
+      "arc_easy",
+      "hellaswag",
+      "wikitext"
+    ]
+  },
+  "config": {
+    "max_rel_regression": 0.05,
+    "max_abs_regression": null,
+    "sigma": 2.0,
+    "require_significance": true,
+    "fail_on_missing_task": false,
+    "fail_on_missing_metric": true,
+    "fail_on_new_task": false
+  },
+  "summary": {
+    "tasks": 3,
+    "metrics": 4,
+    "regressions": 2,
+    "improvements": 0,
+    "missing_tasks": [],
+    "new_tasks": []
+  },
+  "tasks": [
+    {
+      "task": "arc_easy",
+      "status": "regression",
+      "metrics": [
+        {
+          "task": "arc_easy",
+          "metric": "acc",
+          "status": "regression",
+          "baseline": 0.75,
+          "candidate": 0.69,
+          "baseline_stderr": 0.02,
+          "candidate_stderr": 0.02,
+          "delta": -0.06000000000000005,
+          "rel_change": -0.08000000000000007,
+          "worsened_by": 0.08000000000000007,
+          "significant": true,
+          "threshold": 0.05,
+          "noise_band": 0.0565685424949238,
+          "lower_is_better": false,
+          "reason": "8.00% worse than baseline (limit 5.00%)"
+        }
+      ]
+    },
+    {
+      "task": "hellaswag",
+      "status": "pass",
+      "metrics": [
+        {
+          "task": "hellaswag",
+          "metric": "acc",
+          "status": "pass",
+          "baseline": 0.42,
+          "candidate": 0.415,
+          "baseline_stderr": 0.01,
+          "candidate_stderr": 0.01,
+          "delta": -0.0050000000000000044,
+          "rel_change": -0.011904761904761916,
+          "worsened_by": 0.011904761904761916,
+          "significant": false,
+          "threshold": 0.05,
+          "noise_band": 0.0282842712474619,
+          "lower_is_better": false,
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "task": "wikitext",
+      "status": "regression",
+      "metrics": [
+        {
+          "task": "wikitext",
+          "metric": "byte_perplexity",
+          "status": "regression",
+          "baseline": 1.8,
+          "candidate": 2.05,
+          "baseline_stderr": null,
+          "candidate_stderr": null,
+          "delta": 0.24999999999999978,
+          "rel_change": 0.13888888888888876,
+          "worsened_by": 0.13888888888888876,
+          "significant": null,
+          "threshold": 0.05,
+          "noise_band": null,
+          "lower_is_better": true,
+          "reason": "13.89% worse than baseline (limit 5.00%)"
+        },
+        {
+          "task": "wikitext",
+          "metric": "word_perplexity",
+          "status": "pass",
+          "baseline": 12.5,
+          "candidate": 12.6,
+          "baseline_stderr": 0.3,
+          "candidate_stderr": 0.3,
+          "delta": 0.09999999999999964,
+          "rel_change": 0.007999999999999972,
+          "worsened_by": 0.007999999999999972,
+          "significant": false,
+          "threshold": 0.05,
+          "noise_band": 0.848528137423857,
+          "lower_is_better": true,
+          "reason": ""
+        }
+      ]
+    }
+  ],
+  "regressions": [
+    {
+      "task": "arc_easy",
+      "metric": "acc",
+      "status": "regression",
+      "baseline": 0.75,
+      "candidate": 0.69,
+      "baseline_stderr": 0.02,
+      "candidate_stderr": 0.02,
+      "delta": -0.06000000000000005,
+      "rel_change": -0.08000000000000007,
+      "worsened_by": 0.08000000000000007,
+      "significant": true,
+      "threshold": 0.05,
+      "noise_band": 0.0565685424949238,
+      "lower_is_better": false,
+      "reason": "8.00% worse than baseline (limit 5.00%)"
+    },
+    {
+      "task": "wikitext",
+      "metric": "byte_perplexity",
+      "status": "regression",
+      "baseline": 1.8,
+      "candidate": 2.05,
+      "baseline_stderr": null,
+      "candidate_stderr": null,
+      "delta": 0.24999999999999978,
+      "rel_change": 0.13888888888888876,
+      "worsened_by": 0.13888888888888876,
+      "significant": null,
+      "threshold": 0.05,
+      "noise_band": null,
+      "lower_is_better": true,
+      "reason": "13.89% worse than baseline (limit 5.00%)"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "results": {
+    "arc_easy": {
+      "acc,none": 0.75,
+      "acc_stderr,none": 0.02
+    },
+    "wikitext": {
+      "word_perplexity,none": 12.5,
+      "word_perplexity_stderr,none": 0.3,
+      "byte_perplexity,none": 1.8
+    }
+  },
+  "configs": {
+    "model": "hf"
+  },
+  "git_hash": "5555555555555555555555555555555555555555"
+}

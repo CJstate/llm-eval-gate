@@ -1,0 +1,51 @@
+# Gate policy for llm-eval-gate.
+#
+# Use it with:  llm-eval-gate baseline.json candidate.json --config gate.toml
+# Every value here is also settable as a CLI flag, which overrides the file.
+
+[gate]
+# How far a metric may move, relative to its baseline, before it counts.
+# Relative movement is used because harness metrics live on different scales:
+# `acc` is 0-1 while `word_perplexity` is 0-infinity.
+max_rel_regression = 0.05
+
+# Statistical tolerance. When both runs report a standard error, a change
+# smaller than sigma * sqrt(se_baseline^2 + se_candidate^2) is treated as
+# run-to-run noise and cannot fail the gate.
+sigma = 2.0
+require_significance = true
+
+# An absolute drop that always fails, regardless of the baseline magnitude.
+# Also the only rule that can judge a metric whose baseline is ~0.
+# max_abs_regression = 0.02
+
+# Treat a missing baseline task / disappearing metric as a failure.
+fail_on_missing_task = false
+fail_on_missing_metric = true
+
+# Treat a task that only exists in the candidate run as a failure.
+fail_on_new_task = false
+
+# Metrics to skip entirely (harness bookkeeping rather than model quality).
+ignore_metrics = ["samples", "alias"]
+
+# Force the direction of specific metrics when name-based detection is wrong.
+# lower_is_better = ["ppl", "word_perplexity", "bits_per_byte"]
+# higher_is_better = ["acc", "exact_match", "f1"]
+
+# Restrict the comparison.
+# include_tasks = ["arc_easy", "hellaswag", "gsm8k"]
+# include_metrics = ["acc", "acc_norm", "exact_match"]
+
+
+# Per-task and per-metric overrides. The most specific key wins:
+# "task.metric" > "task" > the [gate] defaults above.
+[overrides."arc_easy.acc"]
+max_rel_regression = 0.02
+
+[overrides."gsm8k.exact_match"]
+# Math benchmarks are high-variance; widen the noise band.
+sigma = 3.0
+
+[overrides."wikitext.word_perplexity"]
+max_rel_regression = 0.01
