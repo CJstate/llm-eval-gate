@@ -1,4 +1,4 @@
-## LLM eval gate — ❌ **FAIL**
+## EvalGuard — ❌ **FAIL**
 
 `11111111` → `22222222` · 4 metrics · 2 regression(s) · 0 improvement(s)
 

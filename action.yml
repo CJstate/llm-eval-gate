@@ -1,4 +1,4 @@
-name: LLM eval gate
+name: EvalGuard
 description: >-
   Fail the build when an lm-evaluation-harness run regresses against a baseline.
   Diffs two results JSON files per task and metric, applying relative thresholds
@@ -29,7 +29,13 @@ inputs:
       Where to write the Markdown report, suitable for a pull-request comment.
       Empty disables writing it.
     required: false
-    default: llm-eval-gate-report.md
+    default: evalguard-report.md
+  json-output:
+    description: >-
+      Where to write the machine-readable JSON report. It is exposed as the
+      `json` and `json-path` action outputs. Empty disables writing it.
+    required: false
+    default: evalguard-report.json
   python-version:
     description: Python version used to run the gate.
     required: false
@@ -45,6 +51,12 @@ outputs:
   report-path:
     description: Path to the Markdown report (empty when disabled).
     value: ${{ steps.gate.outputs.report-path }}
+  json:
+    description: Compact evalguard/v1 JSON document (empty when JSON output is disabled).
+    value: ${{ steps.gate.outputs.json }}
+  json-path:
+    description: Path to the JSON report (empty when disabled).
+    value: ${{ steps.gate.outputs.json-path }}
 
 runs:
   using: composite
@@ -54,7 +66,7 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - name: Install llm-eval-gate
+    - name: Install EvalGuard
       shell: bash
       run: python -m pip install --disable-pip-version-check "${{ github.action_path }}"
 
@@ -63,7 +75,7 @@ runs:
       shell: bash
       run: |
         set +e
-        llm-eval-gate "${{ inputs.baseline }}" "${{ inputs.candidate }}" \
+        evalguard "${{ inputs.baseline }}" "${{ inputs.candidate }}" \
           --format markdown --output "${{ inputs.report-path }}" --quiet
         set -e
 
@@ -76,12 +88,22 @@ runs:
         if [ -n "${{ inputs.config }}" ]; then
           args+=( --config "${{ inputs.config }}" )
         fi
-        llm-eval-gate "${args[@]}"
+        if [ -n "${{ inputs.json-output }}" ]; then
+          args+=( --json-output "${{ inputs.json-output }}" )
+        fi
+        evalguard "${args[@]}"
         code=$?
         set -e
 
         echo "exit-code=$code" >> "$GITHUB_OUTPUT"
         echo "report-path=${{ inputs.report-path }}" >> "$GITHUB_OUTPUT"
+        echo "json-path=${{ inputs.json-output }}" >> "$GITHUB_OUTPUT"
+        if [ -n "${{ inputs.json-output }}" ] && [ -f "${{ inputs.json-output }}" ]; then
+          json="$(python -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1], encoding="utf-8")), separators=(",", ":")))' "${{ inputs.json-output }}")"
+          echo "json=$json" >> "$GITHUB_OUTPUT"
+        else
+          echo "json=" >> "$GITHUB_OUTPUT"
+        fi
         if [ "$code" -eq 0 ]; then
           echo "passed=true" >> "$GITHUB_OUTPUT"
         else

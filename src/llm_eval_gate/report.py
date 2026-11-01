@@ -72,6 +72,16 @@ _STATUS_ICON = {
     STATUS_NEW: "🆕",
 }
 
+RESET = "\033[0m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BOLD = "\033[1m"
+
+
+def _paint(text: str, color: str, enabled: bool) -> str:
+    return f"{color}{text}{RESET}" if enabled else text
+
 
 def _fmt(value: float | None, digits: int = 4) -> str:
     if value is None:
@@ -116,7 +126,7 @@ def report_to_dict(report: ComparisonReport) -> dict[str, Any]:
         }
 
     return {
-        "schema": "llm-eval-gate/v1",
+        "schema": "evalguard/v1",
         "passed": not report.failed,
         "exit_code": report.exit_code,
         "baseline": {
@@ -174,10 +184,58 @@ def _headline(report: ComparisonReport) -> str:
     return "PASS — no regressions beyond threshold"
 
 
-def render_text(report: ComparisonReport) -> str:
-    """Human-readable terminal output."""
+def _status_text(metric: MetricComparison) -> str:
+    if metric.status == STATUS_PASS:
+        return "PASS (noise)" if metric.significant is False else "PASS"
+    return metric.status.upper()
+
+
+def _noise_text(metric: MetricComparison) -> str:
+    if metric.noise_band is None:
+        return "n/a"
+    return f"+/- {metric.noise_band:.4g}"
+
+
+def _diagnosis(metric: MetricComparison) -> str:
+    if metric.delta is None or metric.baseline is None or metric.candidate is None:
+        return f"{metric.task}/{metric.metric}: {metric.reason}"
+    falling = metric.delta < 0
+    if metric.lower_is_better:
+        falling = not falling
+    movement = "dropped" if falling else "rose"
+    if metric.rel_change is None:
+        change = f"{abs(metric.delta):.4g}"
+    else:
+        change = f"{abs(metric.rel_change):.2%}"
+    band = (
+        f"noise band +/- {metric.noise_band:.4g}"
+        if metric.noise_band is not None
+        else "an unavailable noise band"
+    )
+    limit = (
+        f" and the {metric.threshold:.2%} limit" if metric.threshold is not None else ""
+    )
+    return (
+        f"{metric.task}/{metric.metric} {movement} from {_fmt(metric.baseline)} "
+        f"to {_fmt(metric.candidate)} ({change}), outside the {band}{limit}. "
+        "Check the model checkpoint, tokenizer/chat template, decoding parameters, "
+        "and evaluation sample counts; rerun on the same harness version before merging."
+    )
+
+
+def _table_row(cells: tuple[str, ...], widths: list[int], color: bool) -> str:
+    padded = [cell.ljust(width) for cell, width in zip(cells, widths)]
+    status_color = RED if cells[4] == "REGRESSION" else YELLOW
+    painted = _paint(padded[4], status_color, color and cells[4] != "PASS")
+    return f"| {padded[0]} | {padded[1]} | {padded[2]} | {padded[3]} | {painted} |"
+
+
+def render_text(report: ComparisonReport, *, color: bool = False) -> str:
+    """Human-readable terminal output with an ASCII comparison table."""
     lines: list[str] = []
-    lines.append(f"llm-eval-gate: {_headline(report)}")
+    mark = "❌ " if report.failed else ""
+    headline = f"evalguard: {mark}{_headline(report)}"
+    lines.append(_paint(headline, RED if report.failed else GREEN, color))
     lines.append("")
 
     baseline_name = report.baseline.model_name or report.baseline.path
@@ -191,43 +249,48 @@ def render_text(report: ComparisonReport) -> str:
         )
     lines.append("")
 
-    failing = {id(m) for m in report.regressions}
-    interesting = [
-        m
-        for m in report.metrics
-        if m.status in (STATUS_REGRESSION, STATUS_IMPROVEMENT, STATUS_MISSING, STATUS_NEW)
+    headers = ("Task", "Baseline", "Candidate", "Noise Band", "Status")
+    rows = [
+        (
+            f"{metric.task}/{metric.metric}",
+            _fmt(metric.baseline),
+            _fmt(metric.candidate),
+            _noise_text(metric),
+            _status_text(metric),
+        )
+        for metric in report.metrics
     ]
-    if not interesting:
-        lines.append("  All compared metrics are within tolerance.")
+    if not rows:
+        lines.append("  No tracked metrics compared.")
     else:
-        width_task = max(len(m.task) for m in interesting)
-        width_metric = max(len(m.metric) for m in interesting)
-        for m in interesting:
-            icon = _STATUS_ICON.get(m.status, " ")
-            base = _fmt(m.baseline)
-            cand = _fmt(m.candidate)
-            lines.append(
-                f"  {icon} {m.task:<{width_task}}  {m.metric:<{width_metric}}  "
-                f"{base:>10} -> {cand:>10}  {_fmt_delta(m):>9}  {_stderr_note(m)}"
-            )
+        widths = [max(len(row[index]) for row in (headers, *rows)) for index in range(5)]
+        border = "+" + "+".join("-" * (width + 2) for width in widths) + "+"
+        lines.append(border)
+        lines.append("| " + " | ".join(h.ljust(w) for h, w in zip(headers, widths)) + " |")
+        lines.append(border)
+        for row in rows:
+            rendered = _table_row(row, widths, color)
+            lines.append(rendered)
+        lines.append(border)
 
     for task in report.tasks:
         if task.status == STATUS_MISSING:
-            lines.append(f"  ⚠️  task missing from candidate: {task.task}")
+            lines.append(f"  [WARN] task missing from candidate: {task.task}")
         elif task.status == STATUS_NEW and config_allows_new(report):
-            lines.append(f"  🆕 task only present in candidate: {task.task}")
+            lines.append(f"  [NEW] task only present in candidate: {task.task}")
 
     lines.append("")
     lines.append(
-        f"  {len(report.metrics)} metrics compared · "
-        f"{len(report.regressions)} regression(s) · "
+        f"  {len(report.metrics)} metrics compared | "
+        f"{len(report.regressions)} regression(s) | "
         f"{len(report.improvements)} improvement(s)"
     )
-    if failing:
+    if report.regressions:
         lines.append("")
-        lines.append("  Regressions:")
-        for m in report.regressions:
-            lines.append(f"    - {m.task}/{m.metric}: {m.reason}")
+        header = "  Regressions:"
+        lines.append(_paint(header, RED, color))
+        for metric in report.regressions:
+            lines.append(_paint(f"    - {_diagnosis(metric)}", RED, color))
     return "\n".join(lines)
 
 
@@ -239,7 +302,7 @@ def render_markdown(report: ComparisonReport) -> str:
     """Markdown suitable for a pull-request comment."""
     lines: list[str] = []
     headline = "❌ **FAIL**" if report.failed else "✅ **PASS**"
-    lines.append(f"## LLM eval gate — {headline}")
+    lines.append(f"## EvalGuard — {headline}")
     lines.append("")
     lines.append(
         f"`{(report.baseline.git_hash or 'baseline')[:8]}` → "
@@ -304,7 +367,7 @@ def render_github(report: ComparisonReport) -> str:
             f"{m.task}/{m.metric}: {_fmt(m.baseline)} -> {_fmt(m.candidate)} "
             f"({_fmt_delta(m)}) — {_stderr_note(m)}"
         )
-        lines.append(f"::error title=LLM eval regression::{_escape(message)}")
+        lines.append(f"::error title=EvalGuard regression::{_escape(message)}")
     if report.config.fail_on_missing_task:
         for task in report.missing_tasks:
             lines.append(
@@ -317,7 +380,7 @@ def render_github(report: ComparisonReport) -> str:
             )
     for m in report.improvements:
         lines.append(
-            f"::notice title=LLM eval improvement::{_escape(f'{m.task}/{m.metric}: {_fmt_delta(m)}')}"
+            f"::notice title=EvalGuard improvement::{_escape(f'{m.task}/{m.metric}: {_fmt_delta(m)}')}"
         )
     lines.append(_headline(report))
     return "\n".join(lines)

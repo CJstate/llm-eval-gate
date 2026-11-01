@@ -1,6 +1,6 @@
-# Gate policy for llm-eval-gate.
+# Gate policy for EvalGuard.
 #
-# Use it with:  llm-eval-gate baseline.json candidate.json --config gate.toml
+# Use it with:  evalguard baseline.json candidate.json --config gate.toml
 # Every value here is also settable as a CLI flag, which overrides the file.
 
 [gate]

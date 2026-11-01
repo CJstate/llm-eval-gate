@@ -1,0 +1,23 @@
+{
+  "results": {
+    "mmlu": {
+      "acc,none": 0.619,
+      "acc_stderr,none": 0.0201,
+      "alias": "mmlu"
+    },
+    "gsm8k": {
+      "exact_match,strict-match": 0.6123,
+      "exact_match_stderr,strict-match": 0.0088,
+      "alias": "gsm8k"
+    }
+  },
+  "configs": {
+    "model": "hf",
+    "model_args": "pretrained=Qwen/Qwen2.5-7B-Instruct",
+    "batch_size": "auto",
+    "limit": 500
+  },
+  "git_hash": "b93f6c21e0a47d85f2c9b604e8a13d7f9c2054ab",
+  "lm_eval_version": "0.4.8",
+  "date": "2026-11-01T04:36:09Z"
+}

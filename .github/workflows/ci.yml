@@ -41,9 +41,9 @@ jobs:
         shell: bash
         run: |
           set +e
-          llm-eval-gate tests/fixtures/baseline.json tests/fixtures/candidate_ok.json --quiet
+          evalguard tests/fixtures/baseline.json tests/fixtures/candidate_ok.json --quiet
           ok=$?
-          llm-eval-gate tests/fixtures/baseline.json tests/fixtures/candidate_regressed.json --quiet
+          evalguard tests/fixtures/baseline.json tests/fixtures/candidate_regressed.json --quiet
           bad=$?
           set -e
           echo "pass-case exit=$ok (want 0); regression-case exit=$bad (want 1)"
@@ -53,9 +53,13 @@ jobs:
       - name: Check the gate reports a regression as JSON
         shell: bash
         run: |
-          llm-eval-gate tests/fixtures/baseline.json tests/fixtures/candidate_regressed.json \
-            --format json --quiet --output gate.json || true
+          evalguard tests/fixtures/baseline.json tests/fixtures/candidate_regressed.json \
+            --json-output --quiet > gate.json || true
           python -c "import json;d=json.load(open('gate.json'));assert d['summary']['regressions']==2,d['summary'];print('ok')"
+
+      - name: Run the one-command demo
+        shell: bash
+        run: bash demo/run_demo.sh
 
   lint:
     name: lint

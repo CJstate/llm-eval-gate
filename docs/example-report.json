@@ -1,5 +1,5 @@
 {
-  "schema": "llm-eval-gate/v1",
+  "schema": "evalguard/v1",
   "passed": false,
   "exit_code": 1,
   "baseline": {

@@ -10,6 +10,7 @@ Exit codes are part of the contract, so CI can rely on them:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -17,7 +18,7 @@ from pathlib import Path
 from .compare import ComparisonReport, compare_runs
 from .config import ConfigError, GateConfig, load_config
 from .loader import ResultsFormatError, load_results
-from .report import RENDERERS, to_ascii
+from .report import RENDERERS, render_json, render_text, to_ascii
 
 __all__ = ["build_parser", "build_config", "main"]
 
@@ -25,7 +26,7 @@ EXIT_PASS = 0
 EXIT_REGRESSION = 1
 EXIT_ERROR = 2
 
-PROG = "llm-eval-gate"
+PROG = "evalguard"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         epilog=(
             "Exit codes: 0 = pass, 1 = regression, 2 = usage/input error. "
-            "Example: llm-eval-gate baseline.json candidate.json --format markdown"
+            "Example: evalguard baseline.json candidate.json --format markdown"
         ),
     )
     parser.add_argument("baseline", help="path to the baseline results JSON")
@@ -138,6 +139,19 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help="also write the rendered report to this file",
     )
+    output.add_argument(
+        "--json-output",
+        nargs="?",
+        const="-",
+        metavar="PATH",
+        help="emit clean JSON to stdout, or also write it to PATH",
+    )
+    output.add_argument(
+        "--color",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="ANSI colors: auto (TTY only), always, or never (default: auto)",
+    )
     output.add_argument("--quiet", action="store_true", help="suppress the stdout report")
     output.add_argument(
         "--ascii",
@@ -189,6 +203,14 @@ def build_config(args: argparse.Namespace) -> GateConfig:
     return replace(config, **changes)
 
 
+def _color_enabled(args: argparse.Namespace) -> bool:
+    if args.color == "always":
+        return True
+    if args.color == "never" or os.environ.get("NO_COLOR"):
+        return False
+    return bool(getattr(sys.stdout, "isatty", lambda: False)())
+
+
 def _write_stdout(text: str, force_ascii: bool) -> None:
     """Print a report without ever dying on a legacy console encoding.
 
@@ -230,7 +252,18 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_ERROR
 
     report: ComparisonReport = compare_runs(baseline, candidate, config)
-    rendered = RENDERERS[args.format](report)
+    if args.format == "text":
+        rendered = render_text(report, color=_color_enabled(args))
+    else:
+        rendered = RENDERERS[args.format](report)
+
+    json_text = render_json(report)
+    if args.json_output and args.json_output != "-":
+        try:
+            Path(args.json_output).write_text(json_text + "\n", encoding="utf-8")
+        except OSError as exc:
+            print(f"{PROG}: error: cannot write {args.json_output}: {exc}", file=sys.stderr)
+            return EXIT_ERROR
 
     if args.output:
         try:
@@ -239,7 +272,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{PROG}: error: cannot write {args.output}: {exc}", file=sys.stderr)
             return EXIT_ERROR
 
-    if not args.quiet:
+    if args.json_output == "-":
+        _write_stdout(json_text, force_ascii=args.ascii)
+    elif not args.quiet:
         _write_stdout(rendered, force_ascii=args.ascii)
 
     return report.exit_code

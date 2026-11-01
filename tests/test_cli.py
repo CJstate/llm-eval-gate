@@ -47,6 +47,31 @@ def test_json_format_is_machine_readable(capsys):
     assert payload["summary"]["regressions"] == 2
 
 
+def test_json_output_flag_emits_only_clean_json(capsys):
+    code = main([BASELINE, REGRESSED, "--json-output"])
+    out = capsys.readouterr().out
+    payload = json.loads(out)
+    assert code == EXIT_REGRESSION
+    assert payload["schema"] == "evalguard/v1"
+    assert "\033[" not in out
+
+
+def test_json_output_can_write_an_action_output_file(tmp_path, capsys):
+    destination = tmp_path / "evalguard.json"
+    code = main([BASELINE, REGRESSED, "--json-output", str(destination), "--quiet"])
+    assert code == EXIT_REGRESSION
+    assert capsys.readouterr().out == ""
+    payload = json.loads(destination.read_text(encoding="utf-8"))
+    assert payload["summary"]["regressions"] == 2
+
+
+def test_color_always_adds_ansi_and_never_removes_it(capsys):
+    assert main([BASELINE, REGRESSED, "--color", "always"]) == EXIT_REGRESSION
+    assert "\033[31m" in capsys.readouterr().out
+    assert main([BASELINE, REGRESSED, "--color", "never"]) == EXIT_REGRESSION
+    assert "\033[" not in capsys.readouterr().out
+
+
 def test_markdown_format(capsys):
     main([BASELINE, REGRESSED, "--format", "markdown"])
     assert "### Regressions" in capsys.readouterr().out

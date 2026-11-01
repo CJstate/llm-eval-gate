@@ -1,4 +1,4 @@
-"""llm-eval-gate — catch LLM evaluation regressions in CI.
+"""EvalGuard — catch LLM evaluation regressions in CI.
 
 Compare two ``lm-evaluation-harness`` result files, apply relative thresholds
 with an stderr-aware noise band, and fail the build when a metric regresses::

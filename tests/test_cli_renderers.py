@@ -30,7 +30,7 @@ def report(candidate="candidate_regressed.json", **config_kwargs):
 def test_report_to_dict_is_serialisable_and_summarises_counts():
     payload = report_to_dict(report())
 
-    assert payload["schema"] == "llm-eval-gate/v1"
+    assert payload["schema"] == "evalguard/v1"
     assert payload["passed"] is False
     assert payload["exit_code"] == 1
     assert payload["summary"]["regressions"] == 2
@@ -52,17 +52,43 @@ def test_render_text_states_failure_and_lists_regressions():
     assert "arc_easy" in text
     assert "byte_perplexity" in text
     assert "Regressions:" in text
+    assert "| Task" in text
+    assert "| Baseline" in text
+    assert "| Candidate" in text
+    assert "| Noise Band" in text
+    assert "| Status" in text
+    assert "outside the noise band" in text
+    assert "Check the model checkpoint" in text
+
+
+def test_render_text_colors_regressions_only_when_requested():
+    plain = render_text(report())
+    colored = render_text(report(), color=True)
+    assert "\033[" not in plain
+    assert "\033[31m" in colored
+    assert "REGRESSION" in colored
+
+
+def test_render_text_marks_pass_inside_the_noise_band():
+    from llm_eval_gate import GateConfig
+
+    noisy = compare_runs(
+        load_results(FIXTURES / "baseline.json"),
+        load_results(FIXTURES / "candidate_noisy.json"),
+        GateConfig(max_rel_regression=0.02),
+    )
+    assert "PASS (noise)" in render_text(noisy)
 
 
 def test_render_text_states_pass():
     text = render_text(report("candidate_ok.json"))
-    assert text.startswith("llm-eval-gate: PASS")
+    assert text.startswith("evalguard: PASS")
     assert "improvement" in text
 
 
 def test_render_markdown_contains_a_table_and_regression_section():
     markdown = render_markdown(report())
-    assert "## LLM eval gate — ❌ **FAIL**" in markdown
+    assert "## EvalGuard — ❌ **FAIL**" in markdown
     assert "### Regressions" in markdown
     assert "| Task | Metric | Baseline | Candidate | Δ | Detail |" in markdown
     assert "`arc_easy`" in markdown
@@ -83,7 +109,7 @@ def test_render_markdown_flags_missing_tasks():
 
 def test_render_github_emits_error_annotations():
     output = render_github(report())
-    assert "::error title=LLM eval regression::" in output
+    assert "::error title=EvalGuard regression::" in output
     assert "arc_easy/acc" in output
 
 

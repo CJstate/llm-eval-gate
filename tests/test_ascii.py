@@ -53,7 +53,7 @@ def test_ascii_flag_runs_on_a_real_console(path, expected, capsys):
     if expected == EXIT_REGRESSION:
         assert "[FAIL]" in out
     else:
-        assert "[PASS]" in out
+        assert "PASS" in out
 
 
 def test_write_stdout_degrades_instead_of_raising(monkeypatch):
